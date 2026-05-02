@@ -31,6 +31,17 @@ const DESCRIPTION_TEMPLATES = [
 const WRAPPED_DESC = DESCRIPTION_TEMPLATES[0](WRAPPED_DATA);
 const WRAPPED_PHOTO = null;
 
+const GOBIKE_SHARE_URL = "https://gobike.app/wrapped/2025";
+
+const downloadPngBlob = (blob, filename = "gobike-2025-wrapped.png") => {
+  const a = document.createElement("a");
+  const url = URL.createObjectURL(blob);
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+};
+
 // Grain overlay using canvas-like SVG noise
 const Grain = ({ opacity = 0.04 }) => (
   <svg style={{ position:"absolute", inset:0, width:"100%", height:"100%", opacity, pointerEvents:"none", mixBlendMode:"overlay", zIndex:10 }}>
@@ -112,38 +123,6 @@ const SponsorDisplay = ({ sponsor, large = false }) => (
     <span style={{ fontFamily:"'Inter',sans-serif", fontSize: large ? 12 : 10, color:"rgba(255,255,255,0.45)", letterSpacing:1.5, textTransform:"uppercase" }}>Presented by</span>
     <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:800, fontSize: large ? 22 : 15, color:"#FFD600", letterSpacing:0.5, textTransform:"uppercase" }}>{sponsor}</span>
   </div>
-);
-
-const WRAPPED_SHARE_URL = "https://freshplate.app/wrapped/2025";
-
-const IconInstagram = ({ size = 28 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="#fff" aria-hidden>
-    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
-  </svg>
-);
-
-const IconTikTok = ({ size = 26 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="#fff" aria-hidden>
-    <path d="M19.59 6.69a4.83 4.83 0 01-3.77-4.25v-.74h-3.28v16.37a2.48 2.48 0 01-2.46 2.47 2.48 2.48 0 01-2.47-2.47 2.48 2.48 0 012.47-2.47c.26 0 .51.05.75.13v-3.35a6.27 6.27 0 00-.75-.05 5.87 5.87 0 105.87 5.87V9.51a8.52 8.52 0 004.64 1.37V7.89a4.96 4.96 0 01-2.83-.2z"/>
-  </svg>
-);
-
-const IconWhatsApp = ({ size = 28 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="#fff" aria-hidden>
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-  </svg>
-);
-
-const IconIMessage = ({ size = 26 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden>
-    <path fill="#fff" d="M12 3C7.03 3 3 6.58 3 11.07c0 2.47 1.21 4.68 3.1 6.11-.09.52-.33 1.88-.34 1.96 0 .12.06.22.15.28.09.06.2.07.3.02.11-.05 2.45-1.35 3.14-1.74.91.25 1.88.39 2.85.39 4.97 0 9-3.58 9-8.07C21 6.58 16.97 3 12 3z"/>
-  </svg>
-);
-
-const IconLink = ({ size = 24 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-    <path d="M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71"/>
-  </svg>
 );
 
 const slides = (data, desc, photo) => {
@@ -409,8 +388,8 @@ export default function App() {
   const [dir, setDir] = useState(1);
   const touchStart = useRef(null);
   const shareCardRef = useRef(null);
-  const [shareSheetOpen, setShareSheetOpen] = useState(false);
-  const [copyCopied, setCopyCopied] = useState(false);
+  const [shareLoading, setShareLoading] = useState(false);
+  const [copyToast, setCopyToast] = useState(false);
 
   const data = WRAPPED_DATA;
   const allSlides = slides(data, WRAPPED_DESC, WRAPPED_PHOTO);
@@ -430,9 +409,14 @@ export default function App() {
     touchStart.current = null;
   };
 
-  const captureAndDownload = async () => {
+  const handleShare = async () => {
     const el = shareCardRef.current;
-    if (!el) return;
+    if (!el || shareLoading) return;
+
+    const title = "My GoBike 2025 Wrapped";
+    const url = GOBIKE_SHARE_URL;
+
+    setShareLoading(true);
     try {
       const canvas = await html2canvas(el, {
         useCORS: true,
@@ -441,22 +425,41 @@ export default function App() {
         backgroundColor: "#0A0A0A",
         logging: false,
       });
-      const a = document.createElement("a");
-      a.download = "freshplate-2025.png";
-      a.href = canvas.toDataURL("image/png");
-      a.click();
-    } catch (e) {
-      console.error(e);
-    }
-  };
+      const blob = await new Promise((resolve, reject) => {
+        canvas.toBlob((b) => (b ? resolve(b) : reject(new Error("PNG export failed"))), "image/png");
+      });
+      const file = new File([blob], "gobike-2025-wrapped.png", { type: "image/png" });
 
-  const handleCopyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(WRAPPED_SHARE_URL);
-      setCopyCopied(true);
-      setTimeout(() => setCopyCopied(false), 2000);
+      if (!navigator.share) {
+        try {
+          await navigator.clipboard.writeText(url);
+          setCopyToast(true);
+          setTimeout(() => setCopyToast(false), 2000);
+        } catch (e) {
+          console.error(e);
+        }
+        return;
+      }
+
+      const shareData = { title, url, files: [file] };
+      const canShareFiles =
+        typeof navigator.canShare !== "function" || navigator.canShare({ files: [file] });
+
+      if (!canShareFiles) {
+        downloadPngBlob(blob);
+        return;
+      }
+
+      try {
+        await navigator.share(shareData);
+      } catch (e) {
+        if (e?.name === "AbortError") return;
+        downloadPngBlob(blob);
+      }
     } catch (e) {
       console.error(e);
+    } finally {
+      setShareLoading(false);
     }
   };
 
@@ -465,10 +468,10 @@ export default function App() {
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700;800;900&family=Inter:wght@300;400;500&display=swap');
         * { box-sizing:border-box; margin:0; padding:0; }
-        @keyframes shareOverlayIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes shareSheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
         button{cursor:pointer;border:none;transition:opacity .15s,transform .1s}
-        button:hover{opacity:.85} button:active{transform:scale(.98)}
+        button:hover:not(:disabled){opacity:.85} button:active:not(:disabled){transform:scale(.98)}
+        button:disabled{opacity:.75;cursor:wait}
       `}</style>
 
       <div style={{ width:"100%", maxWidth:390 }}>
@@ -518,17 +521,23 @@ export default function App() {
             </div>
 
             {idx === allSlides.length - 1 && (
-              <button type="button" onClick={() => setShareSheetOpen(true)} style={{
+              <button type="button" disabled={shareLoading} onClick={handleShare} style={{
                 width:"100%", marginTop:10,
                 background:"#0057FF", color:"#fff",
                 border:"none", borderRadius:10, padding:"15px 20px",
                 fontFamily:"'Barlow Condensed',sans-serif", fontWeight:800, fontSize:18, letterSpacing:1, textTransform:"uppercase",
                 display:"flex", alignItems:"center", justifyContent:"center", gap:10
               }}>
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                  <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
-                  <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
-                </svg>
+                {shareLoading ? (
+                  <svg width="20" height="20" viewBox="0 0 100 100" fill="none" style={{ animation:"spin 0.85s linear infinite" }}>
+                    <circle cx="50" cy="50" r="42" stroke="currentColor" strokeWidth="10" strokeDasharray="66 200" strokeLinecap="round"/>
+                  </svg>
+                ) : (
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/>
+                    <line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/>
+                  </svg>
+                )}
                 Share my 2025 Recap
               </button>
             )}
@@ -538,164 +547,27 @@ export default function App() {
           </div>
       </div>
 
-      {shareSheetOpen && (
+      {copyToast && (
         <div
-          role="presentation"
+          role="status"
           style={{
             position:"fixed",
-            inset:0,
-            zIndex:10000,
+            bottom:"max(24px, env(safe-area-inset-bottom))",
+            left:"50%",
+            transform:"translateX(-50%)",
+            zIndex:20000,
+            background:"rgba(40,40,40,0.96)",
+            color:"#fff",
+            padding:"10px 22px",
+            borderRadius:20,
+            fontFamily:"'Inter',sans-serif",
+            fontSize:14,
+            fontWeight:500,
+            boxShadow:"0 4px 24px rgba(0,0,0,0.35)",
+            pointerEvents:"none",
           }}
         >
-          <div
-            style={{
-              position:"absolute",
-              inset:0,
-              background:"rgba(0,0,0,0.72)",
-              animation:"shareOverlayIn 0.28s ease forwards",
-            }}
-            onClick={() => { setShareSheetOpen(false); setCopyCopied(false); }}
-            aria-hidden
-          />
-          <div style={{
-            position:"absolute",
-            bottom:0,
-            left:0,
-            right:0,
-            display:"flex",
-            justifyContent:"center",
-            pointerEvents:"none",
-            paddingBottom:"max(12px, env(safe-area-inset-bottom))",
-          }}>
-            <div
-              style={{
-                pointerEvents:"auto",
-                width:"100%",
-                maxWidth:390,
-                borderRadius:"14px 14px 0 0",
-                background:"#1c1c1e",
-                padding:"16px 14px 12px",
-                animation:"shareSheetUp 0.38s cubic-bezier(0.32, 0.72, 0, 1) forwards",
-                boxShadow:"0 -12px 40px rgba(0,0,0,0.45)",
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div style={{
-                fontFamily:"'Inter',sans-serif",
-                fontSize:13,
-                fontWeight:600,
-                color:"rgba(255,255,255,0.45)",
-                textAlign:"center",
-                marginBottom:14,
-                letterSpacing:0.3,
-              }}>Share</div>
-
-              <div style={{
-                display:"flex",
-                flexWrap:"wrap",
-                justifyContent:"space-around",
-                gap:"18px 12px",
-                padding:"4px 4px 8px",
-              }}>
-                <button type="button" onClick={captureAndDownload} style={{
-                  display:"flex", flexDirection:"column", alignItems:"center", gap:8,
-                  background:"transparent", border:"none", padding:4, minWidth:68,
-                  cursor:"pointer", color:"#fff",
-                }}>
-                  <div style={{
-                    width:56, height:56, borderRadius:"50%",
-                    background:"linear-gradient(45deg, #f09433 0%, #e6683c 25%, #dc2743 50%, #cc2366 75%, #bc1888 100%)",
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                    boxShadow:"0 4px 14px rgba(188,24,136,0.35)",
-                  }}>
-                    <IconInstagram size={30} />
-                  </div>
-                  <span style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:"rgba(255,255,255,0.85)" }}>Instagram</span>
-                </button>
-
-                <button type="button" onClick={captureAndDownload} style={{
-                  display:"flex", flexDirection:"column", alignItems:"center", gap:8,
-                  background:"transparent", border:"none", padding:4, minWidth:68,
-                  cursor:"pointer", color:"#fff",
-                }}>
-                  <div style={{
-                    width:56, height:56, borderRadius:"50%",
-                    background:"#000000",
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                    boxShadow:"0 4px 14px rgba(0,0,0,0.5)",
-                  }}>
-                    <IconTikTok size={28} />
-                  </div>
-                  <span style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:"rgba(255,255,255,0.85)" }}>TikTok</span>
-                </button>
-
-                <button type="button" onClick={captureAndDownload} style={{
-                  display:"flex", flexDirection:"column", alignItems:"center", gap:8,
-                  background:"transparent", border:"none", padding:4, minWidth:68,
-                  cursor:"pointer", color:"#fff",
-                }}>
-                  <div style={{
-                    width:56, height:56, borderRadius:"50%",
-                    background:"#25D366",
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                    boxShadow:"0 4px 14px rgba(37,211,102,0.35)",
-                  }}>
-                    <IconWhatsApp size={30} />
-                  </div>
-                  <span style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:"rgba(255,255,255,0.85)" }}>WhatsApp</span>
-                </button>
-
-                <button type="button" onClick={captureAndDownload} style={{
-                  display:"flex", flexDirection:"column", alignItems:"center", gap:8,
-                  background:"transparent", border:"none", padding:4, minWidth:68,
-                  cursor:"pointer", color:"#fff",
-                }}>
-                  <div style={{
-                    width:56, height:56, borderRadius:"50%",
-                    background:"#34C759",
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                    boxShadow:"0 4px 14px rgba(52,199,89,0.35)",
-                  }}>
-                    <IconIMessage size={28} />
-                  </div>
-                  <span style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:"rgba(255,255,255,0.85)" }}>iMessage</span>
-                </button>
-
-                <button type="button" onClick={handleCopyLink} style={{
-                  display:"flex", flexDirection:"column", alignItems:"center", gap:8,
-                  background:"transparent", border:"none", padding:4, minWidth:68,
-                  cursor:"pointer", color:"#fff",
-                  position:"relative",
-                }}>
-                  <div style={{
-                    width:56, height:56, borderRadius:"50%",
-                    background:"#8E8E93",
-                    display:"flex", alignItems:"center", justifyContent:"center",
-                    boxShadow:"0 4px 12px rgba(0,0,0,0.25)",
-                  }}>
-                    <IconLink size={24} />
-                  </div>
-                  <span style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:"rgba(255,255,255,0.85)" }}>
-                    {copyCopied ? "Copied!" : "Copy Link"}
-                  </span>
-                </button>
-              </div>
-
-              <button type="button" onClick={() => { setShareSheetOpen(false); setCopyCopied(false); }} style={{
-                width:"100%",
-                marginTop:10,
-                padding:"14px 16px",
-                borderRadius:12,
-                background:"#2c2c2e",
-                border:"none",
-                color:"#0a84ff",
-                fontFamily:"-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Inter', sans-serif",
-                fontSize:17,
-                fontWeight:600,
-                cursor:"pointer",
-              }}>Cancel</button>
-            </div>
-          </div>
+          Copied!
         </div>
       )}
     </div>
