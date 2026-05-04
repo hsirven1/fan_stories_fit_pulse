@@ -1,5 +1,13 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
+import { flushSync } from "react-dom";
 import html2canvas from "html2canvas";
+
+/** Shown only during PNG capture (hidden from normal browsing via capture overlay). */
+const SHARE_EXPORT_CTA = {
+  headline: "Keep the rides coming",
+  line: "Treat yourself to a little extra saddle time this season.",
+  code: "WRAPPED15",
+};
 
 const WRAPPED_DATA = {
   rides: 112,
@@ -28,10 +36,20 @@ const DESCRIPTION_TEMPLATES = [
   (f) => `${f.km}km clocked in ${f.neighborhood}. ${f.month} never knew what hit it.`,
 ];
 
-const WRAPPED_DESC = DESCRIPTION_TEMPLATES[0](WRAPPED_DATA);
+/** Weekend wanderer: mood + wandering, no ride stats (same ballpark length as template 0). */
+const weekendWandererDescription = (f) =>
+  `${f.neighborhood} in weekend light—you wandered on a whim while ${f.month} stretched long and unhurried.`;
+
+const wrappedDescription = (data) =>
+  data.style === "weekend" ? weekendWandererDescription(data) : DESCRIPTION_TEMPLATES[0](data);
+
+const WRAPPED_DESC = wrappedDescription(WRAPPED_DATA);
 const WRAPPED_PHOTO = null;
 
 const GOBIKE_SHARE_URL = "https://gobike.app/wrapped/2025";
+
+/** Fetched into a blob URL so html2canvas can paint it (avoids tainted / missing cross-origin backgrounds). */
+const SHARE_CARD_DISTRICT_PHOTO = "https://picsum.photos/seed/montreal-bike/800/500";
 
 const downloadPngBlob = (blob, filename = "gobike-2025-wrapped.png") => {
   const a = document.createElement("a");
@@ -41,6 +59,39 @@ const downloadPngBlob = (blob, filename = "gobike-2025-wrapped.png") => {
   a.click();
   URL.revokeObjectURL(url);
 };
+
+/** Max bottom/right of capture subtree vs root rect (includes margins on nodes). */
+function measureCaptureSubtreeSize(root) {
+  const rootRect = root.getBoundingClientRect();
+  let maxRight = rootRect.right;
+  let maxBottom = rootRect.bottom;
+  const nodes = root.querySelectorAll("*");
+  for (let i = 0; i < nodes.length; i++) {
+    const node = nodes[i];
+    const r = node.getBoundingClientRect();
+    const st = getComputedStyle(node);
+    const mr = parseFloat(st.marginRight) || 0;
+    const mb = parseFloat(st.marginBottom) || 0;
+    maxRight = Math.max(maxRight, r.right + mr);
+    maxBottom = Math.max(maxBottom, r.bottom + mb);
+  }
+  const w = Math.max(Math.ceil(maxRight - rootRect.left), 1);
+  const h = Math.max(Math.ceil(maxBottom - rootRect.top), 1);
+  return { width: w, height: h };
+}
+
+async function whenImagesReady(container) {
+  const imgs = [...container.querySelectorAll("img")];
+  await Promise.all(
+    imgs.map((img) => {
+      if (img.complete && img.naturalWidth > 0) return Promise.resolve();
+      return new Promise((resolve) => {
+        img.addEventListener("load", resolve, { once: true });
+        img.addEventListener("error", resolve, { once: true });
+      });
+    })
+  );
+}
 
 // Grain overlay using canvas-like SVG noise
 const Grain = ({ opacity = 0.04 }) => (
@@ -125,7 +176,7 @@ const SponsorDisplay = ({ sponsor, large = false }) => (
   </div>
 );
 
-const slides = (data, desc, photo) => {
+const slides = (data, desc, photo, shareCaptureActive, districtPhotoSrc = SHARE_CARD_DISTRICT_PHOTO) => {
   const rank = `TOP ${Math.max(2, Math.min(99, 105 - Math.round(data.rides / 1.6)))}%`;
   const laps = Math.round(data.km / 5.1);
 
@@ -322,58 +373,112 @@ const slides = (data, desc, photo) => {
       textColor: "#fff",
       render: () => (
         <>
-          <Grain opacity={0.06}/>
-          <div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse at 20% 85%, rgba(0,87,255,0.18) 0%, transparent 55%)", zIndex:2, pointerEvents:"none" }}/>
-          <div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse at 80% 15%, rgba(255,59,0,0.1) 0%, transparent 55%)", zIndex:2, pointerEvents:"none" }}/>
-          <div style={{ position:"relative", zIndex:5, display:"flex", flexDirection:"column", height:"100%", gap:10, paddingBottom:8, overflow:"hidden" }}>
+          {/* Single growable frame so full-bleed layers track content + export CTA height */}
+          <div style={{ position:"relative", minHeight:"100%", width:"100%" }}>
+            <Grain opacity={0.06}/>
+            <div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse at 20% 85%, rgba(0,87,255,0.18) 0%, transparent 55%)", zIndex:2, pointerEvents:"none" }}/>
+            <div style={{ position:"absolute", inset:0, background:"radial-gradient(ellipse at 80% 15%, rgba(255,59,0,0.1) 0%, transparent 55%)", zIndex:2, pointerEvents:"none" }}/>
+            <div style={{
+              position:"relative", zIndex:5, display:"flex", flexDirection:"column", minHeight:"100%",
+              gap:10, paddingBottom:8, overflow: shareCaptureActive ? "visible" : "hidden",
+            }}>
 
-            {/* Header — GoBike + 2025 in Rides + AssurPro with separator */}
-            <div style={{ paddingTop:14, display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", gap:5 }}>
-              <GoBikeLogo color="rgba(255,255,255,0.95)" size={1.4} hideSubtitle/>
-              <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:900, fontSize:34, color:"rgba(255,255,255,0.4)", lineHeight:1, letterSpacing:-1, textTransform:"uppercase" }}>2025 in Rides</div>
-              <SponsorDisplay sponsor={data.sponsor} large/>
-              <div style={{ width:"100%", height:1, background:"linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)", marginTop:4 }}/>
-            </div>
-
-            {/* Rider type */}
-            <div style={{ background:"rgba(255,255,255,0.08)", borderRadius:12, padding:"12px 16px" }}>
-              <div style={{ fontFamily:"'Inter',sans-serif", fontSize:9, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:1.5, marginBottom:3 }}>Rider type</div>
-              <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:800, fontSize:28, color:"#fff", lineHeight:1 }}>{profileTitle(data)}</div>
-            </div>
-
-            {/* District image */}
-            <div style={{ position:"relative", borderRadius:14, overflow:"hidden", height:120, flexShrink:0 }}>
-              <img
-                crossOrigin="anonymous"
-                src="https://picsum.photos/seed/montreal-bike/800/500"
-                alt={data.neighborhood}
-                style={{ width:"100%", height:"100%", objectFit:"cover", objectPosition:"center", display:"block" }}
-              />
-              <div style={{ position:"absolute", inset:0, background:"linear-gradient(180deg, transparent 25%, rgba(0,0,0,0.72) 100%)" }}/>
-              <div style={{ position:"absolute", bottom:10, left:14, right:14 }}>
-                <div style={{ fontFamily:"'Inter',sans-serif", fontSize:8, color:"rgba(255,255,255,0.5)", letterSpacing:2.5, textTransform:"uppercase", marginBottom:2 }}>Your neighbourhood</div>
-                <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:900, fontSize:22, color:"#fff", lineHeight:1, letterSpacing:-0.3, textTransform:"uppercase" }}>{data.neighborhood}</div>
+              {/* Header — GoBike + 2025 in Rides + AssurPro with separator */}
+              <div style={{ paddingTop:14, display:"flex", flexDirection:"column", alignItems:"center", textAlign:"center", gap:5 }}>
+                <GoBikeLogo color="rgba(255,255,255,0.95)" size={1.4} hideSubtitle/>
+                <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:900, fontSize:34, color:"rgba(255,255,255,0.4)", lineHeight:1, letterSpacing:-1, textTransform:"uppercase" }}>2025 in Rides</div>
+                <SponsorDisplay sponsor={data.sponsor} large/>
+                <div style={{ width:"100%", height:1, background:"linear-gradient(90deg, transparent, rgba(255,255,255,0.15), transparent)", marginTop:4 }}/>
               </div>
-            </div>
 
-            {/* Stats grid */}
-            <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:2 }}>
-              {[
-                { val:data.rides, lbl:"rides", color:"#FF3B00" },
-                { val:`${data.km}km`, lbl:"covered", color:"#0057FF" },
-                { val:`${data.co2}kg`, lbl:"CO₂ saved", color:"#00C87A" },
-                { val:rank, lbl:"city rank", color:"#B87FFF" },
-              ].map((s,i)=>(
-                <div key={i} style={{ background:"rgba(255,255,255,0.07)", padding:"10px 14px", borderRadius:i===0?"10px 0 0 0":i===1?"0 10px 0 0":i===2?"0 0 0 10px":"0 0 10px 0" }}>
-                  <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:900, fontSize:26, color:s.color, lineHeight:1, letterSpacing:-0.5 }}>{s.val}</div>
-                  <div style={{ fontFamily:"'Inter',sans-serif", fontSize:9, color:"rgba(255,255,255,0.6)", textTransform:"uppercase", letterSpacing:1.5, marginTop:3 }}>{s.lbl}</div>
+              {/* Rider type + wrapped story (same card as identity title) */}
+              <div style={{ background:"rgba(255,255,255,0.08)", borderRadius:12, padding:"12px 16px" }}>
+                <div style={{ fontFamily:"'Inter',sans-serif", fontSize:9, color:"rgba(255,255,255,0.35)", textTransform:"uppercase", letterSpacing:1.5, marginBottom:3 }}>Rider type</div>
+                <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:800, fontSize:26, color:"#fff", lineHeight:1.05 }}>{profileTitle(data)}</div>
+                <p style={{
+                  fontFamily:"'Inter',sans-serif",
+                  fontSize:12,
+                  color:"rgba(255,255,255,0.72)",
+                  lineHeight:1.55,
+                  fontWeight:400,
+                  margin:0,
+                  marginTop:10,
+                  paddingTop:10,
+                  borderTop:"1px solid rgba(255,255,255,0.1)",
+                }}>
+                  "{desc || 'Your story is being crafted…'}"
+                </p>
+              </div>
+
+              {/* District image — blob URL or CORS img so export pipeline can rasterize it */}
+              <div style={{ position:"relative", borderRadius:14, overflow:"hidden", height:120, flexShrink:0 }}>
+                <img
+                  crossOrigin="anonymous"
+                  src={districtPhotoSrc}
+                  alt=""
+                  decoding="async"
+                  style={{
+                    position:"absolute",
+                    inset:0,
+                    width:"100%",
+                    height:"100%",
+                    objectFit:"cover",
+                    objectPosition:"center",
+                    display:"block",
+                  }}
+                />
+                <div style={{ position:"absolute", inset:0, background:"linear-gradient(180deg, transparent 25%, rgba(0,0,0,0.72) 100%)" }}/>
+                <div style={{ position:"absolute", bottom:10, left:14, right:14 }}>
+                  <div style={{ fontFamily:"'Inter',sans-serif", fontSize:8, color:"rgba(255,255,255,0.5)", letterSpacing:2.5, textTransform:"uppercase", marginBottom:2 }}>Your neighbourhood</div>
+                  <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:900, fontSize:22, color:"#fff", lineHeight:1, letterSpacing:-0.3, textTransform:"uppercase" }}>{data.neighborhood}</div>
                 </div>
-              ))}
-            </div>
+              </div>
 
-            {/* Bottom */}
-            <div style={{ display:"flex", justifyContent:"flex-end", marginTop:"auto" }}>
-              <span style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:"rgba(255,255,255,0.2)", letterSpacing:1 }}>#GoBike2025</span>
+              {/* Stats grid */}
+              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:2 }}>
+                {[
+                  { val:data.rides, lbl:"rides", color:"#FF3B00" },
+                  { val:`${data.km}km`, lbl:"covered", color:"#0057FF" },
+                  { val:`${data.co2}kg`, lbl:"CO₂ saved", color:"#00C87A" },
+                  { val:rank, lbl:"city rank", color:"#B87FFF" },
+                ].map((s,i)=>(
+                  <div key={i} style={{ background:"rgba(255,255,255,0.07)", padding:"10px 14px", borderRadius:i===0?"10px 0 0 0":i===1?"0 10px 0 0":i===2?"0 0 0 10px":"0 0 10px 0" }}>
+                    <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:900, fontSize:26, color:s.color, lineHeight:1, letterSpacing:-0.5 }}>{s.val}</div>
+                    <div style={{ fontFamily:"'Inter',sans-serif", fontSize:9, color:"rgba(255,255,255,0.6)", textTransform:"uppercase", letterSpacing:1.5, marginTop:3 }}>{s.lbl}</div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Export-only promo (not shown during normal browsing) */}
+              {shareCaptureActive && (
+                <div
+                  aria-hidden
+                  style={{
+                    marginTop:6,
+                    borderRadius:14,
+                    padding:"16px 18px",
+                    background:"linear-gradient(135deg, rgba(0,87,255,0.35) 0%, rgba(255,59,0,0.2) 100%)",
+                    border:"1px solid rgba(255,255,255,0.14)",
+                    boxShadow:"0 8px 24px rgba(0,0,0,0.25)",
+                  }}
+                >
+                  <div style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:900, fontSize:22, color:"#fff", letterSpacing:0.3, textTransform:"uppercase", lineHeight:1.1, marginBottom:8 }}>
+                    {SHARE_EXPORT_CTA.headline}
+                  </div>
+                  <p style={{ fontFamily:"'Inter',sans-serif", fontSize:13, color:"rgba(255,255,255,0.78)", lineHeight:1.5, fontWeight:400, margin:0, marginBottom:12 }}>
+                    {SHARE_EXPORT_CTA.line}
+                  </p>
+                  <div style={{ display:"inline-flex", alignItems:"center", gap:8, background:"rgba(0,0,0,0.35)", borderRadius:10, padding:"10px 14px", border:"1px dashed rgba(255,214,0,0.5)" }}>
+                    <span style={{ fontFamily:"'Inter',sans-serif", fontSize:10, color:"rgba(255,255,255,0.45)", textTransform:"uppercase", letterSpacing:1.5 }}>Code</span>
+                    <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:800, fontSize:20, color:"#FFD600", letterSpacing:1 }}>{SHARE_EXPORT_CTA.code}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Bottom */}
+              <div style={{ display:"flex", justifyContent:"flex-end", marginTop:"auto" }}>
+                <span style={{ fontFamily:"'Inter',sans-serif", fontSize:11, color:"rgba(255,255,255,0.2)", letterSpacing:1 }}>#GoBike2025</span>
+              </div>
             </div>
           </div>
         </>
@@ -389,10 +494,41 @@ export default function App() {
   const touchStart = useRef(null);
   const shareCardRef = useRef(null);
   const [shareLoading, setShareLoading] = useState(false);
-  const [copyToast, setCopyToast] = useState(false);
+  const [copyToast, setCopyToast] = useState("");
+  const [shareCaptureActive, setShareCaptureActive] = useState(false);
+  const [districtShareImgSrc, setDistrictShareImgSrc] = useState(SHARE_CARD_DISTRICT_PHOTO);
+  const districtBlobUrlRef = useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(SHARE_CARD_DISTRICT_PHOTO, { mode: "cors" });
+        if (!res.ok) throw new Error("district photo fetch failed");
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        if (cancelled) {
+          URL.revokeObjectURL(url);
+          return;
+        }
+        if (districtBlobUrlRef.current) URL.revokeObjectURL(districtBlobUrlRef.current);
+        districtBlobUrlRef.current = url;
+        setDistrictShareImgSrc(url);
+      } catch (e) {
+        console.warn("Using remote URL for share card photo (export may omit image if CORS blocks it)", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (districtBlobUrlRef.current) {
+        URL.revokeObjectURL(districtBlobUrlRef.current);
+        districtBlobUrlRef.current = null;
+      }
+    };
+  }, []);
 
   const data = WRAPPED_DATA;
-  const allSlides = slides(data, WRAPPED_DESC, WRAPPED_PHOTO);
+  const allSlides = slides(data, WRAPPED_DESC, WRAPPED_PHOTO, shareCaptureActive, districtShareImgSrc);
 
   const goTo = (nextIdx) => {
     if (nextIdx < 0 || nextIdx >= allSlides.length) return;
@@ -415,13 +551,31 @@ export default function App() {
 
     const title = "My GoBike 2025 Wrapped";
     const url = GOBIKE_SHARE_URL;
+    const scale = Math.min(2, Math.max(1, window.devicePixelRatio || 2));
 
     setShareLoading(true);
     try {
+      flushSync(() => {
+        setShareCaptureActive(true);
+      });
+
+      await new Promise((r) => setTimeout(r, 220));
+
+      if (document.fonts?.ready) {
+        try {
+          await document.fonts.ready;
+        } catch (_) { /* ignore */ }
+      }
+      await whenImagesReady(el);
+
+      const { width: capW, height: capH } = measureCaptureSubtreeSize(el);
+
       const canvas = await html2canvas(el, {
         useCORS: true,
         allowTaint: false,
-        scale: 2,
+        scale,
+        width: capW,
+        height: capH,
         backgroundColor: "#0A0A0A",
         logging: false,
       });
@@ -430,35 +584,44 @@ export default function App() {
       });
       const file = new File([blob], "gobike-2025-wrapped.png", { type: "image/png" });
 
-      if (!navigator.share) {
+      const tryCopyLink = async (message = "Link copied") => {
         try {
           await navigator.clipboard.writeText(url);
-          setCopyToast(true);
-          setTimeout(() => setCopyToast(false), 2000);
+          setCopyToast(message);
+          setTimeout(() => setCopyToast(""), 2200);
         } catch (e) {
           console.error(e);
+        }
+      };
+
+      if (!navigator.share) {
+        downloadPngBlob(blob);
+        await tryCopyLink("Saved · link copied");
+        return;
+      }
+
+      const canShareFiles =
+        typeof navigator.canShare === "function" && navigator.canShare({ files: [file] });
+
+      if (canShareFiles) {
+        try {
+          await navigator.share({ title, text: title, url, files: [file] });
+        } catch (e) {
+          if (e?.name === "AbortError") return;
+          downloadPngBlob(blob);
+          await tryCopyLink("Saved · link copied");
         }
         return;
       }
 
-      const shareData = { title, url, files: [file] };
-      const canShareFiles =
-        typeof navigator.canShare !== "function" || navigator.canShare({ files: [file] });
-
-      if (!canShareFiles) {
-        downloadPngBlob(blob);
-        return;
-      }
-
-      try {
-        await navigator.share(shareData);
-      } catch (e) {
-        if (e?.name === "AbortError") return;
-        downloadPngBlob(blob);
-      }
+      downloadPngBlob(blob);
+      await tryCopyLink("Saved · link copied");
     } catch (e) {
       console.error(e);
     } finally {
+      flushSync(() => {
+        setShareCaptureActive(false);
+      });
       setShareLoading(false);
     }
   };
@@ -480,21 +643,64 @@ export default function App() {
             <div
               onTouchStart={onTouchStart}
               onTouchEnd={onTouchEnd}
-              style={{ borderRadius:28, overflow:"hidden", height:620, position:"relative", boxShadow:"0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)", background: allSlides[idx].bg }}
+              style={{
+                borderRadius:28,
+                overflow: idx === allSlides.length - 1 && shareCaptureActive ? "visible" : "hidden",
+                height:620,
+                position:"relative",
+                boxShadow:"0 12px 40px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)",
+                background: allSlides[idx].bg,
+              }}
             >
               <div
                 ref={idx === allSlides.length - 1 ? shareCardRef : undefined}
                 style={{
-                  position:"absolute", inset:0, padding:"36px 30px 60px",
+                  position:"absolute",
+                  ...(idx === allSlides.length - 1 && shareCaptureActive
+                    ? { top:0, left:0, right:0, bottom:"auto", minHeight:"100%", height:"auto" }
+                    : { inset:0 }),
+                  padding:"36px 30px 60px",
                   background: allSlides[idx].bg,
                   opacity: visible ? 1 : 0,
                   transform: visible ? "translateY(0)" : `translateY(${dir*14}px)`,
                   transition:"opacity 0.16s ease, transform 0.16s ease",
                   zIndex:20,
+                  overflow: idx === allSlides.length - 1 && shareCaptureActive ? "visible" : "hidden",
                 }}
               >
                 {allSlides[idx].render()}
               </div>
+
+              {shareLoading && (
+                <div
+                  aria-live="polite"
+                  style={{
+                    position:"absolute",
+                    inset:0,
+                    zIndex:80,
+                    borderRadius:28,
+                    background:"rgba(6,6,6,0.72)",
+                    display:"flex",
+                    flexDirection:"column",
+                    alignItems:"center",
+                    justifyContent:"center",
+                    gap:14,
+                    padding:24,
+                    textAlign:"center",
+                    pointerEvents:"all",
+                  }}
+                >
+                  <svg width="36" height="36" viewBox="0 0 100 100" fill="none" style={{ animation:"spin 0.85s linear infinite", color:"#fff" }}>
+                    <circle cx="50" cy="50" r="42" stroke="currentColor" strokeWidth="10" strokeDasharray="66 200" strokeLinecap="round"/>
+                  </svg>
+                  <span style={{ fontFamily:"'Barlow Condensed',sans-serif", fontWeight:800, fontSize:20, color:"#fff", letterSpacing:0.5, textTransform:"uppercase" }}>
+                    Preparing your recap image…
+                  </span>
+                  <span style={{ fontFamily:"'Inter',sans-serif", fontSize:12, color:"rgba(255,255,255,0.55)", maxWidth:260, lineHeight:1.5 }}>
+                    One moment while we line everything up for sharing.
+                  </span>
+                </div>
+              )}
 
               {/* Persistent logo + sponsor — top bar, hidden on last slide where it has its own header */}
               {idx < allSlides.length - 1 && (
@@ -567,7 +773,7 @@ export default function App() {
             pointerEvents:"none",
           }}
         >
-          Copied!
+          {copyToast}
         </div>
       )}
     </div>
